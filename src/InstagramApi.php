@@ -45,6 +45,19 @@ class InstagramApi
         return $this->appCredentials;
     }
 
+    /**
+	 * Make a GET request.
+	 * Allows two formats, either with query params inline within the endpoint, or as a separate array:
+	 * $endpoint = /me/media?fields=media_url,permalink
+	 * $endpoint = /me/media  with  $params = ['fields' => 'media_url,permalink']
+	 *
+	 * @param string $endpoint
+	 * @param array $params
+	 * @param string|null $versionCode
+	 *
+	 * @return InstagramResponse
+	 * @throws InstagramException
+	 */
     public function get(string $endpoint, array $params = [], ?string $versionCode = null): InstagramResponse
     {
         $options = [
@@ -52,9 +65,21 @@ class InstagramApi
                 'access_token' => $this->accessToken,
             ],
         ];
-        $options['query'] = array_merge($options['query'], $params);
+        $urlParts = parse_url($endpoint);
 
-        return $this->sendRequest('GET', $endpoint, $options, $versionCode, null);
+        $endpointPath = $urlParts['path'] ?? $endpoint;
+
+        // Parse any existing query parameters from the endpoint
+        $inlineParams = [];
+        if (isset($urlParts['query']))
+        {
+            parse_str($urlParts['query'], $inlineParams);
+        }
+
+        // Combine existing inline query parameters, additional $params, and access_token
+        $options['query'] = array_merge($options['query'], $inlineParams, $params);
+
+        return $this->sendRequest('GET', $endpointPath, $options, $versionCode, null);
     }
 
     public function post(string $endpoint, array $params = [], ?string $versionCode = null): InstagramResponse
@@ -69,7 +94,7 @@ class InstagramApi
         return $this->sendRequest('POST', $endpoint, $options, $versionCode, null);
     }
 
-    public function sendRequest(string $method, string $endpoint, array $options, ?string $versionCode, ?string $baseUrl): InstagramResponse
+	public function sendRequest(string $method, string $endpoint, array $options, ?string $versionCode = null, ?string $baseUrl = null): InstagramResponse
     {
         $versionCode = $versionCode ?? $this->versionCode;
         if (!empty($versionCode)) {
